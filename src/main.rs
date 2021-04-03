@@ -20,8 +20,12 @@ fn main() {
 
         in vec2 position;
 
+        uniform float t;
+
         void main() {
-            gl_Position = vec4(position, 0.0, 1.0);
+            vec2 pos = position;
+            pos.x += t;
+            gl_Position = vec4(pos, 0.0, 1.0);
         }
     "#;
 
@@ -45,8 +49,14 @@ fn main() {
     let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
 
+    //animation value
+    let mut t: f32 = 0.5;
     event_loop.run( move |ev, _, control_flow|{
-
+        //update t
+        t += 0.0002;
+        if t > 0.5 {
+            t = -0.5;
+        }
 
         let next_frame_time = std::time::Instant::now() +
             std::time::Duration::from_nanos(16_666_667);
@@ -65,7 +75,7 @@ fn main() {
 
         let mut target = display.draw();
         target.clear_color(0.0,0.0,1.0,1.0);
-        target.draw(&vertex_buffer, &indices, &program, &glium::uniforms::EmptyUniforms,
+        target.draw(&vertex_buffer, &indices, &program, &uniform! {t: t},
                     &Default::default()).unwrap();
         target.finish().unwrap();
     })
