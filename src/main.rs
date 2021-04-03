@@ -19,23 +19,24 @@ fn main() {
         #version 140
 
         in vec2 position;
+        out vec2 my_attr;
 
-        uniform float t;
+        uniform mat4 matrix;
 
         void main() {
-            vec2 pos = position;
-            pos.x += t;
-            gl_Position = vec4(pos, 0.0, 1.0);
+            my_attr = position;
+            gl_Position = matrix * vec4(position, 0.0, 1.0);
         }
     "#;
 
     let fragment_shader_src = r#"
         #version 140
 
+        in vec2 my_attr;
         out vec4 color;
 
         void main() {
-            color = vec4(1.0, 0.0, 0.0, 1.0);
+            color = vec4(my_attr * 0.2, 0.0, 1.0);
         }
     "#;
 
@@ -62,6 +63,7 @@ fn main() {
             std::time::Duration::from_nanos(16_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
+        //closing window
         match ev {
             glutin::event::Event::WindowEvent {event, ..} => match event {
                 glutin::event::WindowEvent::CloseRequested => {
@@ -73,9 +75,18 @@ fn main() {
             _ => ()
         }
 
+        //drawing triangle
+        let uniforms = uniform! {
+            matrix: [
+                [1.0,0.0,0.0,0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0f32]
+            ]
+        };
         let mut target = display.draw();
         target.clear_color(0.0,0.0,1.0,1.0);
-        target.draw(&vertex_buffer, &indices, &program, &uniform! {t: t},
+        target.draw(&vertex_buffer, &indices, &program, &uniforms,
                     &Default::default()).unwrap();
         target.finish().unwrap();
     })
