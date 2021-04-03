@@ -1,30 +1,46 @@
 #[macro_use]
 extern crate glium;
+extern crate image;
+
+
 #[derive(Copy, Clone)]
 struct Vertex {
-    position: [f32; 2]
+    position: [f32; 2],
+    tex_coords: [f32; 2]
 }
-implement_vertex!(Vertex, position);
+implement_vertex!(Vertex, position, tex_coords);
+
 fn main() {
     use glium::glutin;
     use glium::Surface;
+    use std::io::Cursor;
+    //texture stuff
+    let image = image::load(Cursor::new(&include_bytes!("../mypfp.png")[..]),
+        image::ImageFormat::Png).unwrap().to_rgb8();
+
+    let image_dimensions = image.dimensions();
+    let image = glium::texture::RawImage2d::from_raw_rgb_reversed(&image.into_raw(), image_dimensions);
 
     let mut event_loop = glutin::event_loop::EventLoop::new();
     let wb = glutin::window::WindowBuilder::new();
     let cb = glutin::ContextBuilder::new();
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
+    //texture
+    let texture = glium::texture::Texture2d::new(&display, image).unwrap();
+
     //SHADERS
     let vertex_shader_src = r#"
         #version 140
 
         in vec2 position;
-        out vec2 my_attr;
+        in vec2 tex_coords;
+        out vec2 v_tex_coords;
 
         uniform mat4 matrix;
 
         void main() {
-            my_attr = position;
+            v_tex_coords = tex_coords;
             gl_Position = matrix * vec4(position, 0.0, 1.0);
         }
     "#;
@@ -32,19 +48,21 @@ fn main() {
     let fragment_shader_src = r#"
         #version 140
 
-        in vec2 my_attr;
+        in vec2 v_tex_coords;
         out vec4 color;
 
+        uniform sampler2D tex;
+
         void main() {
-            color = vec4(my_attr * 0.2, 0.0, 1.0);
+            color = texture(tex, v_tex_coords);
         }
     "#;
 
     let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap();
 
-    let vertex1 = Vertex { position: [-0.5, -0.5]};
-    let vertex2 = Vertex { position: [0.0, 0.5]};
-    let vertex3 = Vertex { position: [0.5, -0.25]};
+    let vertex1 = Vertex { position: [-0.5, -0.5], tex_coords: [0.0, 0.0]};
+    let vertex2 = Vertex { position: [0.0, 0.5], tex_coords: [0.0, 1.0]};
+    let vertex3 = Vertex { position: [0.5, -0.25], tex_coords: [1.0, 0.0]};
     let shape = vec![vertex1, vertex2, vertex3];
 
     let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
@@ -82,7 +100,8 @@ fn main() {
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0f32]
-            ]
+            ],
+            tex: &texture
         };
         let mut target = display.draw();
         target.clear_color(0.0,0.0,1.0,1.0);
