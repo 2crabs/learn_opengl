@@ -19,8 +19,8 @@ fn main() {
     //texture stuff
 
     let event_loop = glutin::event_loop::EventLoop::new();
-    let wb = glutin::window::WindowBuilder::new();
-    let cb = glutin::ContextBuilder::new();
+    let wb = glutin::window::WindowBuilder::new().with_title("utah teapot");
+    let cb = glutin::ContextBuilder::new().with_depth_buffer(24);
     let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
     let positions = glium::VertexBuffer::new(&display, &teapot::VERTICES).unwrap();
@@ -91,10 +91,22 @@ fn main() {
         }
 
         //drawing triangle
+
+
+        let params = glium::DrawParameters{
+            depth: glium::Depth{
+                test: glium::draw_parameters::DepthTest::IfLess,
+                write: true,
+                .. Default::default()
+            },
+            //polygon_mode: glium::draw_parameters::PolygonMode::Line,
+            .. Default::default()
+        };
         let mut target = display.draw();
-        target.clear_color(0.0,0.0,1.0,1.0);
+        target.clear_color_and_depth((0.0,0.0,1.0,1.0), 1.0);
         let light = [-1.0, 0.4, 0.9f32];
 
+        //transform matrix
         let matrix =  [
             [0.01,0.0,0.0,0.0],
             [0.0, 0.01, 0.0, 0.0],
@@ -102,8 +114,29 @@ fn main() {
             [0.0, 0.0, 0.0, 1.0f32]
         ];
 
+
+        //perspective
+        let perspective = {
+            let (width, height) = target.get_dimensions();
+            let aspect_ratio = height as f32 / width as f32;
+
+            let fov: f32 = 3.141592 / 3.0;
+            let zfar = 1024.0;
+            let znear = 0.1;
+
+            let f = 1.0 / (fov / 2.0).tan();
+
+            [
+                [f *   aspect_ratio   ,    0.0,              0.0              ,   0.0],
+                [         0.0         ,     f ,              0.0              ,   0.0],
+                [         0.0         ,    0.0,  (zfar+znear)/(zfar-znear)    ,   1.0],
+                [         0.0         ,    0.0, -(2.0*zfar*znear)/(zfar-znear),   0.0],
+            ]
+        };
+
+
         target.draw((&positions, &normals), &indices, &program, &uniform! {matrix: matrix, u_light: light},
-                    &Default::default()).unwrap();
+                    &params).unwrap();
 
         target.finish().unwrap();
     })
